@@ -1,0 +1,25 @@
+---
+title: "Kaggle"
+author: "Jusitn Meier + Blanca Villanueva"
+date: "October 28, 2015"
+output: html_document
+---
+
+Load the data
+```{r}
+training_features = read.csv("training_features.csv")
+training_target = read.csv("training_target.csv")
+validation_features = read.csv("validation_features.csv")
+validation_target = read.csv("validation_target.csv")
+leaderboard_features = read.csv("leaderboard_features.csv")
+```
+
+
+```{r}
+df = data.frame(training_target, training_features)
+model.linear = lm(ALSFRS_slope ~ age + onset_delta + onset_site.Limb + mean.uric_acid, data = df)
+summary(model.linear)
+pred.lm = predict(model.linear, validation_features)
+pred.lm
+validation_target
+```
