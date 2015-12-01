@@ -1,0 +1,87 @@
+Getting Started with Kaggle Competition
+========================================================
+
+After downloading the .csv files, we load the data as usual.
+
+```{r}
+# Change this to your data directory
+data.dir <- "/Users/blancavillanueva/Dropbox/_a1516/stats202/kaggle1"
+setwd(data.dir)
+# Read in each data files into a data frame
+training.target <- read.csv("training_target.csv")
+training.features <- read.csv("training_features.csv")
+validation.features <- read.csv("validation_features.csv")
+validation.target <- read.csv("validation_target.csv")
+leaderboard.features<- read.csv("leaderboard_features.csv")
+```
+
+Let's take a look at the format of **training.target** data:
+
+```{r}
+head(training.target)
+```
+
+We also load the **leaderboard_predictions-example.csv** file to see the output format. 
+
+```{r}
+leaderboard.predictions <- read.csv("leaderboard_predictions-example.csv") 
+head(leaderboard.predictions)
+```
+The format matches with the **training.target**. 
+
+Here, for each leaderboard subject, let's predict the target by the mean of the training target.
+
+```{r}
+library(glmnet)
+y <- training.target$ALSFRS_slope
+y.test <- validation.target$ALSFRS_slope
+
+df <- data.frame(merge(training.features, training.target, by = 'subject.id'))
+df.test <- data.frame(merge(validation.features, validation.target, by = 'subject.id'))
+
+for(i in 1:ncol(df)){
+  df[is.na(df[,i]), i] <- mean(df[,i], na.rm = TRUE)
+}
+
+for(i in 1:ncol(df.test)){
+  df.test[is.na(df.test[,i]), i] <- mean(df.test[,i], na.rm = TRUE)
+}
+
+# if there are remaining NA values, use means from training set
+for(i in 1:ncol(df.test)){
+  df.test[is.na(df.test[,i]), i] <- mean(df[,i], na.rm = TRUE)
+}
+
+for(i in 1:ncol(leaderboard.features)){
+  leaderboard.features[is.na(leaderboard.features[,i]), i] <- mean(leaderboard.features[,i], na.rm = TRUE)
+}
+
+# if there are remaining NA values, use mean from training + validation set
+joined.df = rbind(df, df.test)
+for(i in 1:ncol(leaderboard.features)){
+  leaderboard.features[is.na(leaderboard.features[,i]), i] <- mean(joined.df[,i], na.rm = TRUE)
+}
+
+# x = model.matrix(ALSFRS_slope~., df)[,-1]
+# x.test = model.matrix(ALSFRS_slope~., df.test)[,-1]
+
+# cv.lasso <- cv.glmnet(x, y)
+# coef(cv.lasso, s = "lambda.1se")
+# opt.lambda = cv.lasso$lambda.1se
+
+x.leaderboard = as.matrix(leaderboard.features)
+# lasso.pred = predict(cv.lasso, s=cv.lasso$lambda.1se, newx=x.leaderboard)
+# mean((lasso.pred-y.test)^2)
+# leaderboard.predictions$ALSFRS_slope <- lasso.pred
+
+# Random Forest
+rf.als = randomForest(ALSFRS_slope~., data=df, importance=TRUE, na.action=na.roughfix)
+yhat.rf = predict(rf.als, newdata=x.leaderboard)
+leaderboard.predictions$ALSFRS_slope <- yhat.rf
+```
+
+We use **write.csv** function to write a CSV file in the contest format with the leaderboard subject predictions. 
+
+```{r}
+write.csv(leaderboard.predictions, file = "leaderboard_predictions_rf1.csv",row.names=FALSE)
+```
